@@ -1,7 +1,3 @@
-# ~/.bashrc: executed by bash(1) for non-login shells.
-# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
-# for examples
-
 # If not running interactively, don't do anything
 case $- in
     *i*) ;;
@@ -23,48 +19,24 @@ HISTFILESIZE=2000
 # update the values of LINES and COLUMNS.
 shopt -s checkwinsize
 
-# If set, the pattern "**" used in a pathname expansion context will
-# match all files and zero or more directories and subdirectories.
-#shopt -s globstar
+# the pattern "**" used in a pathname expansion context will match all files
+# and zero or more directories and subdirectories.
+shopt -s globstar
 
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
-
-# set a fancy prompt (non-color, unless we know we "want" color)
-case "$TERM" in
-    xterm-color|*-256color) color_prompt=yes;;
-esac
-
-# If this is an xterm set the title to user@host:dir
-case "$TERM" in
-xterm*|rxvt*)
-    PS1="\[\e]0;\u@\h: \w\a\]$PS1"
-    ;;
-*)
-    ;;
-esac
 
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
     alias ls='ls --color=auto'
-
     alias grep='grep --color=auto'
     alias fgrep='fgrep --color=auto'
     alias egrep='egrep --color=auto'
-    alias julia='julia --color=yes'
 fi
 
 # colored GCC warnings and errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
-
-# some more ls aliases
-alias ll='ls -alhF'
-alias la='ls -A'
-alias l='ls -CF'
-alias vi='vim'
-alias ipython='ipython --no-confirm-exit'
-alias tp='echo $TMUX_PANE'
 
 # enable programmable completion features (you don't need to enable
 # this, if it's already enabled in /etc/bash.bashrc and /etc/profile
@@ -76,6 +48,8 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
+
+## Functions ##
 
 function latex_init() {
     if [ $# -eq 1 ]
@@ -93,51 +67,82 @@ function latex_init() {
         yes | rm -r latex-macros
 }
 
+mountcrypt() {
+    if [ -z "$1" ]; then
+        echo "Usage: mountcrypt <dir.encrypted>"
+        return 1
+    fi
+    
+    local encrypted="$1"
+    local dir=$(echo $encrypted | sed 's/\..*$//')
+    local keyfile="${dir}.key.gpg"
+        
+    mkdir "$dir"
+    
+    # Mount with YubiKey
+    gpg --decrypt "$keyfile" 2>/dev/null | gocryptfs -q "$encrypted" "$dir"
+    
+    if [ $? -ne 0 ]; then
+        rmdir "$dir" 2>/dev/null
+        return 1
+    fi
+}
+
+umountcrypt() {
+    if [ -z "$1" ]; then
+        echo "Usage: umountcrypt <dir>"
+        return 1
+    fi
+    
+    fusermount -u "$1" && rmdir "$1"
+}
+
+## Aliases ##
+
+alias ll='ls -alhF'
+alias la='ls -A'
+alias l='ls -CF'
+alias vi='nvim'
+alias vim='nvim'
+alias ipython='echo $TMUX_PANE && ipython --no-confirm-exit'
+alias tp='echo $TMUX_PANE'
 alias today="date +%Y%m%d"
 alias latest="ls -l *.md | tail -n 1 | awk '{print \$NF}'"
 
-alias scratch="vi scratch.md"
+## Path ##
 
+export PATH="$PATH:/home/matin/opt/texlive/2024/bin/x86_64-linux"
+export PATH="$PATH:/home/matin/opt/nvim/bin"
+export PATH="$PATH:/home/matin/opt/starship/"
+export PATH="$PATH:/home/matin/opt/pixi/bin"
+export PATH="$PATH:/home/matin/opt/cmake/bin"
+export PATH="$PATH:/home/matin/opt/atuin/bin"
+export PATH="$PATH:/home/matin/opt/claude/bin"
+export PATH="$PATH:/home/matin/opt/tmux/bin"
+export PATH="/home/matin/.pixi/bin:$PATH"
 
-alias ijulia='julia --project=. -e "using IJulia; notebook()"'
+## Initialize various things ##
+
+stty -ixon
 
 # starship
-export PATH="/home/matin/opt/starship/:$PATH"
 eval "$(starship init bash)"
 export STARSHIP_CONFIG=/home/matin/data/starship/config.toml
- 
-stty -ixon
 
 source /usr/share/bash-completion/completions/git
 
+export EDITOR=nvim # for vipe
 
-export PATH="$PATH:/home/matin/opt/texlive/2024/bin/x86_64-linux"
+eval "$(pixi completion --shell bash)"
 
-export PATH="/home/matin/opt/nvim/bin:$PATH"
+eval "$(atuin init bash --disable-up-arrow)"
 
-export PATH="/home/matin/opt/processing/processing-4.3.3/java/bin:$PATH"
+. "$HOME/opt/atuin/bin/env"
 
-export PATH="/home/matin/opt/clojure/bin:$PATH"
-
-export PATH="/home/matin/opt/cursor:$PATH"
-
-export JAVA_HOME="/home/matin/opt/processing/processing-4.3.3/java/bin"
-
-alias vim='nvim'
+[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh
 
 
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/matin/opt/miniconda/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/home/matin/opt/miniconda/etc/profile.d/conda.sh" ]; then
-        . "/home/matin/opt/miniconda/etc/profile.d/conda.sh"
-    else
-        export PATH="/home/matin/opt/miniconda/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-# <<< conda initialize <<<
+
+
+
 
