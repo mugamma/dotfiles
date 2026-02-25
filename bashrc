@@ -58,13 +58,16 @@ fi
 # colored GCC warnings and errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
-# some more ls aliases
+# some aliases
 alias ll='ls -alhF'
 alias la='ls -A'
 alias l='ls -CF'
 alias vi='vim'
-alias ipython='ipython --no-confirm-exit'
+alias ipython='echo $TMUX_PANE && ipython --no-confirm-exit'
 alias tp='echo $TMUX_PANE'
+alias gssh='ssh -i ~/.ssh/google_compute_engine'
+alias gscp='scp -i ~/.ssh/google_compute_engine'
+alias yoloclaude='claude --dangerously-skip-permissions'
 
 # enable programmable completion features (you don't need to enable
 # this, if it's already enabled in /etc/bash.bashrc and /etc/profile
@@ -96,10 +99,35 @@ function latex_init() {
 alias today="date +%Y%m%d"
 alias latest="ls -l *.md | tail -n 1 | awk '{print \$NF}'"
 
-alias scratch="vi scratch.md"
+mountcrypt() {
+    if [ -z "$1" ]; then
+        echo "Usage: mountcrypt <dir.encrypted>"
+        return 1
+    fi
 
+    local encrypted="$1"
+    local dir=$(echo $encrypted | sed 's/\..*$//')
+    local keyfile="${dir}.key.gpg"
 
-alias ijulia='julia --project=. -e "using IJulia; notebook()"'
+    mkdir "$dir"
+
+    # Mount with YubiKey
+    gpg --decrypt "$keyfile" 2>/dev/null | gocryptfs -q "$encrypted" "$dir"
+
+    if [ $? -ne 0 ]; then
+        rmdir "$dir" 2>/dev/null
+        return 1
+    fi
+}
+
+umountcrypt() {
+    if [ -z "$1" ]; then
+        echo "Usage: umountcrypt <dir>"
+        return 1
+    fi
+
+    fusermount -u "$1" && rmdir "$1"
+}
 
 # starship
 export PATH="/home/matin/opt/starship/:$PATH"
@@ -110,34 +138,26 @@ stty -ixon
 
 source /usr/share/bash-completion/completions/git
 
+alias vim='nvim'
+
+export EDITOR=nvim # for vipe
 
 export PATH="$PATH:/home/matin/opt/texlive/2024/bin/x86_64-linux"
 
 export PATH="/home/matin/opt/nvim/bin:$PATH"
+export PATH="/home/matin/opt/pixi/bin:$PATH"
+export PATH="$PATH:/home/matin/opt/cmake/bin"
+export PATH="$PATH:/home/matin/opt/atuin/bin"
+export PATH="$PATH:/home/matin/opt/claude/bin"
+export PATH="$PATH:/home/matin/opt/tmux/bin"
+export PATH="$PATH:/home/matin/opt/julia/bin"
 
-export PATH="/home/matin/opt/processing/processing-4.3.3/java/bin:$PATH"
+eval "$(pixi completion --shell bash)"
 
-export PATH="/home/matin/opt/clojure/bin:$PATH"
+. "$HOME/opt/atuin/bin/env"
 
-export PATH="/home/matin/opt/cursor:$PATH"
+[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh
+eval "$(atuin init bash --disable-up-arrow)"
 
-export JAVA_HOME="/home/matin/opt/processing/processing-4.3.3/java/bin"
-
-alias vim='nvim'
-
-
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/matin/opt/miniconda/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/home/matin/opt/miniconda/etc/profile.d/conda.sh" ]; then
-        . "/home/matin/opt/miniconda/etc/profile.d/conda.sh"
-    else
-        export PATH="/home/matin/opt/miniconda/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-# <<< conda initialize <<<
-
+PATH="/home/matin/.pixi/bin:$PATH"
+. "/home/matin/opt/rust/cargo/env"
